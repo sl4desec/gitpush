@@ -24,7 +24,3 @@ No installation required. Just run the provided batch file.
 3. Choose your identity (or add a new one).
 4. Enter your commit message.
 5. Watch it deploy.
-
-## Author
-
-sl4de
