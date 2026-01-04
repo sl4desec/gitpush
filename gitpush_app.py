@@ -178,6 +178,22 @@ def push_workflow():
         sel = input_clean("\n  Select > ")
         if sel.isdigit() and 1 <= int(sel) <= len(accounts):
             identity = accounts[int(sel)-1]
+            
+            # Smart Token Check: If account has no token, make user enter it NOW
+            if not identity.get("token"):
+                print("\n  [!] Selected account has no token.")
+                new_token = input_clean("  Enter GitHub Token: ")
+                if new_token:
+                     identity["token"] = new_token
+                     # Auto-save to config
+                     for acc in accounts:
+                         if acc["alias"] == identity["alias"]:
+                             acc["token"] = new_token
+                     ConfigManager.save_accounts(accounts)
+                     print("  [OK] Token saved and ready.")
+                else:
+                    print("  [!] Token required for push. Aborting.")
+                    return
 
     print_banner()
     print(f"  Target: {path}")
@@ -312,7 +328,11 @@ def account_menu():
             alias = input_clean("  Alias (e.g. Work): ")
             name = input_clean("  Username: ")
             email = input_clean("  Email: ")
-            token = input_clean("  Token (ghp_...): ")
+            
+            token = ""
+            while not token:
+                token = input_clean("  Token (ghp_...) [Required]: ")
+            
             if alias and name:
                 accs.append({"alias":alias, "name":name, "email":email, "token":token})
                 ConfigManager.save_accounts(accs) 
