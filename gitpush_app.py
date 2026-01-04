@@ -5,6 +5,7 @@ import time
 import subprocess
 import shutil
 import tkinter as tk
+import urllib.parse
 from tkinter import filedialog
 
 class ConfigManager:
@@ -83,7 +84,12 @@ class GitHandler:
             clean_url = clean_url.replace("https://", "")
             if "@" in clean_url:
                 clean_url = clean_url.split("@")[-1]
-            return f"https://{identity['name']}:{identity['token']}@{clean_url}"
+            
+            # Encode username and token to handle special chars like @ in email
+            safe_user = urllib.parse.quote(identity['name'], safe='')
+            safe_token = urllib.parse.quote(identity['token'], safe='')
+            
+            return f"https://{safe_user}:{safe_token}@{clean_url}"
         return original_url
 
     def get_current_branch(self):
