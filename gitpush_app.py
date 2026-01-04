@@ -7,10 +7,6 @@ import shutil
 import tkinter as tk
 from tkinter import filedialog
 
-
-# ==========================================
-# CONFIGURATION MANAGER
-# ==========================================
 class ConfigManager:
     CONFIG_FILE = "git_accounts.json"
 
@@ -33,22 +29,13 @@ class ConfigManager:
         except IOError:
             return False
 
-
-# ==========================================
-# GIT HANDLER (THE BRAIN)
-# ==========================================
 class GitHandler:
     def __init__(self, path):
         self.path = os.path.normpath(path)
 
     def run(self, command, auth_identity=None, remote_name="origin"):
-        """
-        Executes a git command. If auth_identity is provided, injects the token 
-        into the remote URL for the duration of the command.
-        """
         original_url = None
         
-        # 1. Inject Token if needed
         if auth_identity and auth_identity.get("token"):
             original_url = self._get_remote_url(remote_name)
             if original_url and "github.com" in original_url:
@@ -56,7 +43,6 @@ class GitHandler:
                 self._set_remote_url(remote_name, auth_url)
 
         try:
-            # 2. Execute Command
             if os.name == "nt":
                 startupinfo = subprocess.STARTUPINFO()
                 startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
@@ -78,7 +64,6 @@ class GitHandler:
             return process.returncode, stdout, stderr
 
         finally:
-            # 3. Restore Original URL (SECURITY)
             if original_url:
                 self._set_remote_url(remote_name, original_url)
 
@@ -87,19 +72,15 @@ class GitHandler:
         return out.strip() if code == 0 else None
 
     def _set_remote_url(self, remote, url):
-        # We use 'run' recursively here? No, base run doesn't use auth for this.
-        # Direct subprocess call to avoid recursion loop risk
         subprocess.run(
             f'git remote set-url {remote} "{url}"', 
             cwd=self.path, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
         )
 
     def _construct_auth_url(self, original_url, identity):
-        """Constructs https://user:token@github.com/... url"""
         clean_url = original_url.strip()
         if clean_url.startswith("https://"):
             clean_url = clean_url.replace("https://", "")
-            # Remove existing auth if any
             if "@" in clean_url:
                 clean_url = clean_url.split("@")[-1]
             return f"https://{identity['name']}:{identity['token']}@{clean_url}"
@@ -109,7 +90,7 @@ class GitHandler:
         code, out, _ = self.run("git branch --show-current")
         if code == 0 and out.strip():
             return out.strip()
-        return "main" # Fallback
+        return "main"
 
     def ensure_git_initialized(self):
         if not os.path.isdir(os.path.join(self.path, ".git")):
@@ -117,8 +98,6 @@ class GitHandler:
             self.run("git branch -M main")
             return "INIT"
         
-        # Always enforce branch name connectivity
-        # This fixes detached HEAD issues
         current = self.get_current_branch()
         if not current: 
             self.run("git branch -M main")
@@ -140,10 +119,6 @@ class GitHandler:
         except:
             pass
 
-
-# ==========================================
-# USER INTERFACE (CLI)
-# ==========================================
 def clear_screen():
     os.system("cls" if os.name == "nt" else "clear")
 
@@ -156,6 +131,7 @@ def print_banner():
  | |_| | | |   | |  |  __/ | |_| | ___) ||  _  |
   \____||___|  |_|  |_|     \___/ |____/ |_| |_|
     """)
+    print(f"{'@sl4de':^60}")
     print("\n")
 
 def print_status(step, status, details=""):
@@ -180,11 +156,6 @@ def folder_dialog():
     root.destroy()
     return folder
 
-
-# ==========================================
-# WORKFLOWS
-# ==========================================
-
 def push_workflow():
     print_banner()
     print("  Press [ENTER] to select project directory...")
@@ -193,11 +164,9 @@ def push_workflow():
     path = folder_dialog()
     if not path: return
 
-    # 1. Setup Phase
     print_banner()
     print(f"  Target: {path}\n")
     
-    # Identity Selection
     accounts = ConfigManager.load_accounts()
     identity = None
     if accounts:
@@ -210,7 +179,6 @@ def push_workflow():
         if sel.isdigit() and 1 <= int(sel) <= len(accounts):
             identity = accounts[int(sel)-1]
 
-    # Commit Message
     print_banner()
     print(f"  Target: {path}")
     print(f"  User  : {identity['name'] if identity else 'System Default'}")
@@ -219,11 +187,9 @@ def push_workflow():
     msg = input_clean("  Commit Message > ")
     while not msg: msg = input_clean("  Commit Message > ")
 
-    # 2. Execution Phase
     print("\n" + "-" * 40)
     git = GitHandler(path)
     
-    # Config User
     if identity:
         git.run(f'git config user.name "{identity["name"]}"')
         git.run(f'git config user.email "{identity["email"]}"')
@@ -241,21 +207,14 @@ def push_workflow():
     print_status("Committing", "...")
     c, out, err = git.run(f'git commit -m "{msg}"')
     
-    # Check for success or 'nothing to commit'
     full_c_out = (out + err).lower()
     if c == 0:
          print_status("Committing", "OK")
     elif "nothing to commit" in full_c_out or "işlenecek" in full_c_out or "clean" in full_c_out:
          print_status("Committing", "SKIP", "(No changes)")
     else:
-         # Even if commit fails (e.g. empty), we might still want to push previous commits
-         # But if it's the FIRST commit (root), push will fail later.
-         # Let's try to proceed but warn.
          print_status("Committing", "ERROR")
-         # Debug print to see WHY it failed
-         # print(f"DEBUG: {full_c_out}") 
 
-    # Remote Check
     print_status("Checking Remote", "...")
     remote_url = git._get_remote_url("origin")
     if not remote_url:
@@ -270,24 +229,18 @@ def push_workflow():
     else:
          print_status("Checking Remote", "OK")
 
-    # Push Logic (The Robust Part)
     branch = git.get_current_branch()
     print_status(f"Pushing ({branch})", "...")
     
-    # Try Normal Push
     c, out, err = git.run(f"git push -u origin {branch}", identity)
     
-    # Analyze Output
     full_output = (out + "\n" + err).lower()
     is_up_to_date = "everything up-to-date" in full_output or "her şey güncel" in full_output
     
-    # If explicit success OR (it says success but nothing updated)
     if c == 0 and not is_up_to_date:
         print_status("Pushing", "DONE")
         display_success()
     else:
-        # HANDLING ERRORS / STUCK STATE
-        # Treat 'Everything up-to-date' as a potential conflict/stuck state that needs forcing
         if "non-fast-forward" in full_output or "fetch first" in full_output or is_up_to_date:
             
             status_msg = "CONFLICT" if not is_up_to_date else "STUCK"
@@ -315,12 +268,10 @@ def push_workflow():
                          return
                 else:
                     print_status("Pulling", "FAILED")
-                    # If rebase fails, it might be stuck. Abort it.
                     git.run("git rebase --abort")
             
             elif choice == "2":
                 print_status("Force Pushing", "...")
-                # To force update even if no changes, we create an empty commit first if it was 'up-to-date'
                 if is_up_to_date:
                     git.run('git commit --allow-empty -m "Manual Forced Update"')
                 
@@ -331,14 +282,12 @@ def push_workflow():
                     input_clean("Enter...")
                     return
 
-        # If we are here, it failed either initially or after retry
         print_status("Pushing", "FAILED")
         print("\n  [Git Output]:")
         print(err)
         print(out)
     
     input_clean("\nPress [ENTER] to return...")
-
 
 def account_menu():
     while True:

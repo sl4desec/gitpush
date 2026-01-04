@@ -1,26 +1,21 @@
 # GitPush
 
-A lightweight, automated CLI tool for pushing projects to GitHub. Built with Python.
+A powerful, robust CLI tool to automate your Git workflow. Handles everything from init to push, including smart conflict resolution.
 
-## Features
+## Installation and Usage
 
-- **Automated Workflow**: Handles `git init`, `add`, `commit`, and `push` in a single flow.
-- **Identity Management**: Supports multiple GitHub accounts (Work, Personal, etc.) with easy switching.
-- **Smart Detection**: Automatically detects existing repositories and remotes.
-- **Safety**: Includes built-in .gitignore generation to protect sensitive config files.
-- **Clean UI**: Minimalist terminal interface with no distractions.
+```bash
+git clone https://github.com/sl4desec/gitpush.git
+cd gitpush
+python3 run.py
+```
 
-## Installation
+## Getting a GitHub Token
 
-No installation required.
+You need a Personal Access Token (Classic) to push changes.
 
-1. Ensure you have Python and Git installed.
-2. Run `python run.py`.
-
-## Usage
-
-1. Launch the tool.
-2. Select your project directory when prompted.
-3. Choose your identity (or add a new one).
-4. Enter your commit message.
-5. Watch it deploy.
+1. [Click here to open GitHub Tokens](https://github.com/settings/tokens).
+2. Click Generate new token > Generate new token (classic).
+3. Name: gitpush | Expiration: No expiration.
+4. Scopes: Check the repo box.
+5. Click Generate token and COPY it.
